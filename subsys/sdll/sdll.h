@@ -7,18 +7,18 @@
  /**
  * @file sdll.h
  *
- * @brief Simple Data Link Layer (SimpleDLL) API.
+ * @brief Simple Data Link Layer (SDLL) API.
  */
 
-#ifndef SIMPLEDLL_SIMPLEDLL_H__
-#define SIMPLEDLL_SIMPLEDLL_H__
+#ifndef SDLL_SDLL_H__
+#define SDLL_SDLL_H__
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
 /**
- * @brief SimpleDLL frame received callback
+ * @brief SDLL frame received callback
  *
  * This function is called when a frame is received and validated in case
  * `frame_check()` is not NULL, else it is called when a frame is received.
@@ -29,7 +29,7 @@
 typedef void (*sdll_frame_received_callback_t)(const uint8_t * data, const size_t len);
 
 /**
- * @brief SimpleDLL frame validation function
+ * @brief SDLL frame validation function
  *
  * This function is called after a frame is completely received and before
  * calling `frame_received()`. It is used to validate the content of the frame
@@ -43,7 +43,7 @@ typedef bool (*sdll_frame_validation_check_function_t)(const uint8_t * data, con
 size_t len);
 
 /**
- * @brief SimpleDLL frame send function
+ * @brief SDLL frame send function
  *
  * This function is called to send a frame.
  *
@@ -56,7 +56,7 @@ typedef int (*sdll_frame_send_function_t) (const uint8_t * data,
     const size_t len);
 
 /**
- * @brief SimpleDLL frame sent callback
+ * @brief SDLL frame sent callback
  *
  * This function is called when a frame is completely sent.
  *
@@ -66,9 +66,9 @@ typedef int (*sdll_frame_send_function_t) (const uint8_t * data,
 typedef void (*sdll_frame_sent_callback_t) (const uint8_t * data, const size_t len);
 
 /**
- * @brief SimpleDLL configuration
+ * @brief SDLL configuration
  *
- * This structure is used to configure the SimpleDLL library on initialization.
+ * This structure is used to configure the SDLL library on initialization.
  */
 struct sdll_config {
     struct {
@@ -80,25 +80,25 @@ struct sdll_config {
         size_t len;
     } send_buffer;
     struct {
-      sdll_frame_received_callback_t frame_received;
-      sdll_frame_validation_check_function_t frame_check;
-      sdll_frame_send_function_t frame_send;
-      sdll_frame_sent_callback_t frame_sent;
+        sdll_frame_send_function_t frame_send_fn;
+        sdll_frame_validation_check_function_t frame_check_fn;
+        sdll_frame_received_callback_t frame_received_cb;
+        sdll_frame_sent_callback_t frame_sent_cb;
     } callbacks;
 };
 
 /**
- * @brief SimpleDLL context
+ * @brief SDLL context
  */
 struct sdll_context;
 
 /**
- * @brief SimpleDLL initialization function
+ * @brief SDLL initialization function
  *
- * This function initializes the SimpleDLL library.
+ * This function initializes the SDLL library.
  *
- * @param cfg SimpleDLL configuration
- * @param ctx Pointer to initialize SimpleDLL context
+ * @param cfg SDLL configuration
+ * @param ctx Pointer to initialize SDLL context
  * @return 0 if the initialization is successful
  * @return -EINVAL if one or more parameters are invalid
  * @return -ENOMEM if context allocation fails
@@ -106,7 +106,7 @@ struct sdll_context;
 int sdll_init(struct sdll_config * cfg, struct sdll_context ** ctx);
 
 /**
- * @brief SimpleDLL frame reception function
+ * @brief SDLL frame reception function
  *
  * This function must be called when a new frame is received.
  *
@@ -114,7 +114,7 @@ int sdll_init(struct sdll_config * cfg, struct sdll_context ** ctx);
  * validatation function and frame received callbacks are called in this
  * context.
  *
- * @param ctx SimpleDLL context
+ * @param ctx SDLL context
  * @param buffer Buffer with received data
  * @param len Length of the buffer
  * @return Number of bytes processed.
@@ -126,7 +126,7 @@ int sdll_receive(struct sdll_context * ctx, const uint8_t * buffer, const size_t
 /** @todo Add related configs to the FHD */
 /** @todo Consider providing the callback in this function instead of config */
 /**
- * @brief SimpleDLL frame reception function
+ * @brief SDLL frame reception function
  *
  * This function must be called when a new frame is received.
  *
@@ -134,7 +134,7 @@ int sdll_receive(struct sdll_context * ctx, const uint8_t * buffer, const size_t
  * enqueued to be processed by the system workqueue or a dedicated thread
  * (configurable).
  *
- * @param ctx SimpleDLL context
+ * @param ctx SDLL context
  * @param buffer Buffer with received data
  * @param len Length of the buffer
  * @return Number of bytes processed.
@@ -145,14 +145,14 @@ int sdll_receive_async(struct sdll_context * ctx, const uint8_t * buffer, const 
 
 /** @todo Consider providing the callback in this function instead of config */
 /**
- * @brief SimpleDLL frame send function
+ * @brief SDLL frame send function
  *
  * This function sends a frame by calling the provided `frame_send` function. If
  * a `frame_sent` callback is provided, it will not be called here.
  *
  * The function blocks until the frame is completely sent.
  *
- * @param ctx SimpleDLL context
+ * @param ctx SDLL context
  * @param buffer Buffer with data to send
  * @param len Length of the buffer
  * @return Number of bytes sent.
@@ -163,7 +163,7 @@ int sdll_send(struct sdll_context * ctx, const uint8_t * buffer, const size_t le
 /** @todo Add related configs to the FHD */
 /** @todo Consider providing the callback in this function instead of config */
 /**
- * @brief SimpleDLL frame send function
+ * @brief SDLL frame send function
  *
  * This function sends a frame by calling the provided frame send function.
  *
@@ -171,7 +171,7 @@ int sdll_send(struct sdll_context * ctx, const uint8_t * buffer, const size_t le
  * enqueued to be sent by the system workqueue or a dedicated thread
  * (configurable). Provided callback for `frame_sent` is called in this context.
  *
- * @param ctx SimpleDLL context
+ * @param ctx SDLL context
  * @param buffer Buffer with data to send
  * @param len Length of the buffer
  * @return Number of bytes sent.
@@ -179,4 +179,4 @@ int sdll_send(struct sdll_context * ctx, const uint8_t * buffer, const size_t le
  */
 int sdll_send_async(struct sdll_context * ctx, const uint8_t * buffer, const size_t len);
 
-#endif /* SIMPLEDLL_SIMPLEDLL_H__ */
+#endif /* SDLL_SDLL_H__ */

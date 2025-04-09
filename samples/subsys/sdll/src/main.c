@@ -6,9 +6,9 @@
 
 #include <stdio.h>
 #include <crc.h>
-#include <subsys/simpledll/simpledll.h>
+#include <subsys/sdll/sdll.h>
 
-static struct sdll_context contexts[CONFIG_SIMPLEDLL_MAX_INSTANCES];
+static struct sdll_context contexts[CONFIG_SDLL_MAX_INSTANCES];
 
 
 

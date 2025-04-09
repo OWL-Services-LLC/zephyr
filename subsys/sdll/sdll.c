@@ -7,7 +7,7 @@
   /**
  * @file sdll.c
  *
- * @brief Simple Data Link Layer (SimpleDLL) API implementation
+ * @brief Simple Data Link Layer (SDLL) API implementation
  */
 
 #include <stdint.h>
@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <zephyr/kernel.h>
 
-#include <subsys/simpledll/simpledll.h>
+#include <subsys/sdll/sdll.h>
 
 #define SDLL_MINIMUM_BUFFER_SIZE 4
 
@@ -30,7 +30,7 @@ struct sdll_context {
     int recv_status;
 };
 
-static struct sdll_context sdll_instance[CONFIG_SIMPLEDLL_MAX_INSTANCES];
+static struct sdll_context sdll_instance[CONFIG_SDLL_MAX_INSTANCES];
 static size_t sdll_instance_count;
 
 static int frame_put(struct sdll_context * ctx, const uint8_t * payload, const size_t paylaod_len)
@@ -52,12 +52,12 @@ static int frame_put(struct sdll_context * ctx, const uint8_t * payload, const s
         {
             ctx->send_status |= SDLL_STATUS_NEW_FRAME_BIT;
 
-            ctx->cfg.ptr[0] = CONFIG_SIMPLEDLL_BOUNDARY_CHAR;
+            ctx->cfg.ptr[0] = CONFIG_SDLL_BOUNDARY_CHAR;
             ctx->send_frame_len++;
             continue;
         }
 
-        if (payload[nbytes] == CONFIG_SIMPLEDLL_BOUNDARY_CHAR || payload[nbytes] == CONFIG_SIMPLEDLL_ESCAPE_CHAR)
+        if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR || payload[nbytes] == CONFIG_SDLL_ESCAPE_CHAR)
         {
             if (ctx->send_frame_len + 1 > ctx->cfg.send_buffer.len)
             {
@@ -67,12 +67,12 @@ static int frame_put(struct sdll_context * ctx, const uint8_t * payload, const s
 
             /* Send escape character */
 
-            ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SIMPLEDLL_ESCAPE_CHAR;
+            ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SDLL_ESCAPE_CHAR;
             ctx->send_frame_len++;
 
             /* Send inverted character */
 
-            ctx->cfg.ptr[ctx->send_frame_len] = payload[nbytes] ^ CONFIG_SIMPLEDLL_INVERT_MASK;
+            ctx->cfg.ptr[ctx->send_frame_len] = payload[nbytes] ^ CONFIG_SDLL_INVERT_MASK;
             ctx->send_frame_len++;
         }
         else
@@ -94,7 +94,7 @@ static int frame_put(struct sdll_context * ctx, const uint8_t * payload, const s
         }
         else
         {
-            ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SIMPLEDLL_BOUNDARY_CHAR;
+            ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SDLL_BOUNDARY_CHAR;
             ctx->send_frame_len++;
         }
     }
@@ -115,7 +115,7 @@ static int frame_put(struct sdll_context * ctx, const uint8_t payload_byte, cons
 
         /* The first byte is the boundary char */
 
-        ctx->cfg.ptr[0] = CONFIG_SIMPLEDLL_BOUNDARY_CHAR;
+        ctx->cfg.ptr[0] = CONFIG_SDLL_BOUNDARY_CHAR;
         ctx->send_frame_len = 1;
 
         /* Re-check buffer length */
@@ -126,7 +126,7 @@ static int frame_put(struct sdll_context * ctx, const uint8_t payload_byte, cons
         }
     }
 
-    if (payload_byte == CONFIG_SIMPLEDLL_BOUNDARY_CHAR || payload_byte == CONFIG_SIMPLEDLL_ESCAPE_CHAR)
+    if (payload_byte == CONFIG_SDLL_BOUNDARY_CHAR || payload_byte == CONFIG_SDLL_ESCAPE_CHAR)
     {
         /* Re-check buffer length */
 
@@ -137,12 +137,12 @@ static int frame_put(struct sdll_context * ctx, const uint8_t payload_byte, cons
 
         /* Send escape character */
 
-        ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SIMPLEDLL_ESCAPE_CHAR;
+        ctx->cfg.ptr[ctx->send_frame_len] = CONFIG_SDLL_ESCAPE_CHAR;
         ctx->send_frame_len++;
 
         /* Send inverted character */
 
-        ctx->cfg.ptr[ctx->send_frame_len] = payload_byte ^ CONFIG_SIMPLEDLL_INVERT_MASK;
+        ctx->cfg.ptr[ctx->send_frame_len] = payload_byte ^ CONFIG_SDLL_INVERT_MASK;
         ctx->send_frame_len++;
     }
     else
@@ -166,7 +166,7 @@ int sdll_init(struct sdll_config * cfg, struct sdll_context ** ctx)
         return -EINVAL;
     }
 
-    if (sdll_instance_count >= CONFIG_SIMPLEDLL_MAX_INSTANCES)
+    if (sdll_instance_count >= CONFIG_SDLL_MAX_INSTANCES)
     {
         return -ENOMEM;
     }

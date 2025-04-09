@@ -1,25 +1,25 @@
 # Copyright (C) 2025 - OWL Services LLC
 # SPDX-License-Identifier: Apache-2.0
 
-menuconfig SIMPLEDLL
+menuconfig SDLL
     bool "Simple Data Link Layer"
     help
-      SimpleDLL is a library that provides a simple data
+      SDLL is a library that provides a simple data
       link layer for sending and receiving data over
       a serial connection.
 
 
-if SIMPLEDLL
+if SDLL
 
-    config SIMPLEDLL_MAX_INSTANCES
+    config SDLL_MAX_INSTANCES
         int "Max instances"
         default 1
         help
-          The maximum number of SimpleDLL instances that can be created.
+          The maximum number of SDLL instances that can be created.
           This value should be set to the number of ports that will
-          be used with SimpleDLL. The default value is 1.
+          be used with SDLL. The default value is 1.
 
-    config SIMPLEDLL_BOUNDARY_CHAR
+    config SDLL_BOUNDARY_CHAR
         int "Boundary character"
         range 0x01 0xFF
         default 0x7E
@@ -28,7 +28,7 @@ if SIMPLEDLL
           It should be a single byte value. The default value is the same for
           HDLC protocol "0x7E". Cannot be equal to escape char.
 
-    config SIMPLEDLL_ESCAPE_CHAR
+    config SDLL_ESCAPE_CHAR
         int "Escape character"
         range 0x01 0xFF
         default 0x7D
@@ -37,7 +37,7 @@ if SIMPLEDLL
           It should be a single byte value. The default value is the same for
           HDLC protocol "0x7D". Cannot be equal to boundary char.
 
-    config SIMPLEDLL_ESCAPE_MASK
+    config SDLL_ESCAPE_MASK
         int "Escape mask"
         range 0x01 0xFF
         default 0x20
@@ -46,6 +46,6 @@ if SIMPLEDLL
           It should be a single byte value. The default value is the same for
           HDLC protocol "0x20". Cannot be 0x00.
 
-endif # SIMPLEDLL
+endif # SDLL
 
 # End of Kconfig

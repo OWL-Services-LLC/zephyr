@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 sample:
-  description: SimpleDLL sample application
-  name: simpledll sample
+  description: SDLL sample application
+  name: sdll sample
 common:
   build_only: true
   integration_platforms:
@@ -14,4 +14,4 @@ tests:
     tags:
       - uart
       - subsys
-      - simpledll
+      - sdll
