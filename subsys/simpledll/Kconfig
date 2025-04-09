@@ -1,0 +1,51 @@
+# Copyright (C) 2025 - OWL Services LLC
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig SIMPLEDLL
+    bool "Simple Data Link Layer"
+    help
+      SimpleDLL is a library that provides a simple data
+      link layer for sending and receiving data over
+      a serial connection.
+
+
+if SIMPLEDLL
+
+    config SIMPLEDLL_MAX_INSTANCES
+        int "Max instances"
+        default 1
+        help
+          The maximum number of SimpleDLL instances that can be created.
+          This value should be set to the number of ports that will
+          be used with SimpleDLL. The default value is 1.
+
+    config SIMPLEDLL_BOUNDARY_CHAR
+        int "Boundary character"
+        range 0x01 0xFF
+        default 0x7E
+        help
+          The boundary character is used to delimit the start and end of a message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x7E". Cannot be equal to escape char.
+
+    config SIMPLEDLL_ESCAPE_CHAR
+        int "Escape character"
+        range 0x01 0xFF
+        default 0x7D
+        help
+          The escape character is used to escape protocol characters in the message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x7D". Cannot be equal to boundary char.
+
+    config SIMPLEDLL_ESCAPE_MASK
+        int "Escape mask"
+        range 0x01 0xFF
+        default 0x20
+        help
+          The escape mask is used to mask the boundary character in the message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x20". Cannot be 0x00.
+
+endif # SIMPLEDLL
+
+# End of Kconfig
