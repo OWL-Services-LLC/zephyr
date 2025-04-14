@@ -19,8 +19,17 @@ if SDLL
           This value should be set to the number of ports that will
           be used with SDLL. The default value is 1.
 
+    config SDLL_MUTEX_TIMEOUT_MS
+        int "Timeout in milliseconds"
+        default 100
+        help
+          The timeout in milliseconds for the mutex used by SDLL.
+          This value should be set to the maximum time that the
+          application will wait for the mutex to be available.
+          The default value is 100 milliseconds.
+
     config SDLL_BOUNDARY_CHAR
-        int "Boundary character"
+        hex "Boundary character"
         range 0x01 0xFF
         default 0x7E
         help
@@ -29,7 +38,7 @@ if SDLL
           HDLC protocol "0x7E". Cannot be equal to escape char.
 
     config SDLL_ESCAPE_CHAR
-        int "Escape character"
+        hex "Escape character"
         range 0x01 0xFF
         default 0x7D
         help
@@ -38,13 +47,17 @@ if SDLL
           HDLC protocol "0x7D". Cannot be equal to boundary char.
 
     config SDLL_ESCAPE_MASK
-        int "Escape mask"
+        hex "Escape mask"
         range 0x01 0xFF
         default 0x20
         help
           The escape mask is used to mask the boundary character in the message.
           It should be a single byte value. The default value is the same for
           HDLC protocol "0x20". Cannot be 0x00.
+
+module = SDLL
+module-str = sdll
+source "subsys/logging/Kconfig.template.log_config"
 
 endif # SDLL
 
