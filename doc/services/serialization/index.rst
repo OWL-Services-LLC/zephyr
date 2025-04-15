@@ -10,3 +10,4 @@ structured data with a known format on-the-wire.
    :maxdepth: 1
 
    nanopb.rst
+   sdll.rst

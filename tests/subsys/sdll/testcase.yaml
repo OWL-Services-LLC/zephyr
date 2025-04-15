@@ -1,0 +1,4 @@
+tests:
+  sdll.api:
+    platform_allow: native_sim
+    tags: sdll
