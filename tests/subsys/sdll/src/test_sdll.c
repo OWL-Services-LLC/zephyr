@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2025 OWL Services LLC. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 #include <zephyr/sdll/sdll.h>

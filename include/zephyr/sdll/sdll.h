@@ -10,8 +10,8 @@
  * @brief Simple Data Link Layer (SDLL) API.
  */
 
-#ifndef SDLL_SDLL_H__
-#define SDLL_SDLL_H__
+#ifndef ZEPHYR_INCLUDE_SDLL_SDLL_H_
+#define ZEPHYR_INCLUDE_SDLL_SDLL_H_
 
 #include <stdint.h>
 #include <stddef.h>
@@ -26,13 +26,13 @@ typedef uint8_t sdll_context_id;
  * @brief SDLL frame received callback
  *
  * This function is called when a frame is received and validated in case
- * `frame_check()` is not NULL, else it is called when a frame is received.
+ * `frame_check()` is not NULL, otherwise it is called when a frame is received.
  *
  * @param cid SDLL context id
  * @param data Pointer to the received data
  * @param len Length of the received data
  */
-typedef void (*sdll_frame_received_callback_t)(const sdll_context_id cid, const uint8_t * data, const size_t len);
+typedef void (*sdll_frame_received_callback_t)(const sdll_context_id cid, const uint8_t *data, const size_t len);
 
 /**
  * @brief SDLL frame validation function
@@ -41,11 +41,12 @@ typedef void (*sdll_frame_received_callback_t)(const sdll_context_id cid, const 
  * calling `frame_received()`. It is used to validate the content of the frame
  * (i.e. a checksum or CRC-16 check).
  *
+ * @param cid SDLL context id
  * @param data Pointer to the received data
  * @param len Length of the received data
  * @return true if the frame is valid, false otherwise
   */
-typedef bool (*sdll_frame_validation_check_function_t)(const sdll_context_id cid, const uint8_t * data, const
+typedef bool (*sdll_frame_validation_check_function_t)(const sdll_context_id cid, const uint8_t *data, const
 size_t len);
 
 /**
@@ -58,7 +59,7 @@ size_t len);
  * @return Number of bytes sent
  * @return -EINVAL if one or more parameters are invalid
  */
-typedef int (*sdll_frame_send_function_t) (const sdll_context_id cid, const uint8_t * data,
+typedef int (*sdll_frame_send_function_t) (const sdll_context_id cid, const uint8_t *data,
     const size_t len);
 
 /**
@@ -69,7 +70,7 @@ typedef int (*sdll_frame_send_function_t) (const sdll_context_id cid, const uint
  * @param data Pointer to the sent data
  * @param len Length of the sent data
  */
-typedef void (*sdll_frame_sent_callback_t) (const sdll_context_id cid, const uint8_t * data, const size_t len);
+typedef void (*sdll_frame_sent_callback_t) (const sdll_context_id cid, const uint8_t *data, const size_t len);
 
 /**
  * @brief SDLL configuration
@@ -79,14 +80,13 @@ typedef void (*sdll_frame_sent_callback_t) (const sdll_context_id cid, const uin
  */
 struct sdll_receiver_config {
 
-    /** @brief Buffer to store frames received */
-    uint8_t * receive_buffer;
+    /** @brief Buffer to store received frames */
+    uint8_t *receive_buffer;
 
-    /** @brief Length of the buffer. Must be at least
-     * `SDLL_MINIMUM_BUFFER_SIZE` bytes */
+    /** @brief Length of the buffer. Must be at least `SDLL_MINIMUM_BUFFER_SIZE` bytes */
     size_t receive_buffer_len;
 
-    /** @brief Frame received callback */
+    /** @brief Received frame callback */
     sdll_frame_received_callback_t frame_received_cb;
 
     /** @brief Frame check function */
@@ -102,7 +102,7 @@ struct sdll_receiver_config {
 struct sdll_transmitter_config {
 
     /** @brief Buffer to store frames to be sent */
-    uint8_t * send_buffer;
+    uint8_t *send_buffer;
 
     /** @brief Length of the buffer. Must be at least
      * `SDLL_MINIMUM_BUFFER_SIZE` bytes */
@@ -123,8 +123,7 @@ struct sdll_transmitter_config {
  * This function initializes the SDLL library and configures both the transmitter
  * stage and/or the receiver stage if provided.
  *
- * @note:
- * The buffer size must be at least `SDLL_MINIMUM_BUFFER_SIZE` bytes.
+ * @pre: The buffer size must be at least `SDLL_MINIMUM_BUFFER_SIZE` bytes.
  *
  * @param rxcfg SDLL receiver configuration (NULL disables receiver)
  * @param txcfg SDLL transmitter configuration (NULL disables transmitter)
@@ -132,7 +131,7 @@ struct sdll_transmitter_config {
  * @return -EINVAL if one or more parameters are invalid
  * @return -ENOMEM if context allocation fails
  */
-int sdll_init(const struct sdll_receiver_config * rxcfg, const struct sdll_transmitter_config * txcfg);
+int sdll_init(const struct sdll_receiver_config *rxcfg, const struct sdll_transmitter_config *txcfg);
 
 /**
  * @brief SDLL deinitialization function
@@ -154,14 +153,14 @@ int sdll_deinit(const sdll_context_id context_id);
  * validatation function and frame received callbacks are called in this
  * context.
  *
- * @param ctx SDLL context id
+ * @param cid SDLL context id
  * @param buffer Buffer with received data
  * @param len Length of the buffer
  * @return 0 if all bytes were processed.
  * @return -EINVAL if one or more parameters are invalid.
  * @return -ENOMEM if the received frame is too big for the buffer.
  */
-int sdll_receive(const sdll_context_id cid, const uint8_t * buffer, const size_t len);
+int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
 
 /**
  * @brief SDLL frame send function
@@ -179,7 +178,7 @@ int sdll_receive(const sdll_context_id cid, const uint8_t * buffer, const size_t
  * @return -ENOBUFS if the frame is too big for the buffer
  * @return -EIO if the frame send function fails to send the frame
  */
-int sdll_send(const sdll_context_id cid, const uint8_t * buffer, const size_t len);
+int sdll_send(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
 
 #ifdef CONFIG_SDLL_ASYNC
 
@@ -201,7 +200,7 @@ int sdll_send(const sdll_context_id cid, const uint8_t * buffer, const size_t le
  * @return -EINVAL if one or more parameters are invalid.
  * @return -ENOMEM if the received frame is too big for the buffer.
  */
-int sdll_receive_async(const sdll_context_id cid, const uint8_t * buffer, const size_t len);
+int sdll_receive_async(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
 
 
 /** @todo Add related configs to the FHD */
@@ -221,8 +220,8 @@ int sdll_receive_async(const sdll_context_id cid, const uint8_t * buffer, const 
  * @return Number of bytes sent.
  * @return -EINVAL if one or more parameters are invalid
  */
-int sdll_send_async(const sdll_context_id cid, const uint8_t * buffer, const size_t len);
+int sdll_send_async(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
 
 #endif /* CONFIG_SDLL_ASYNC */
 
-#endif /* SDLL_SDLL_H__ */
+#endif /* ZEPHYR_INCLUDE_SDLL_SDLL_H_ */
