@@ -18,7 +18,7 @@ procedure (i.e. CRC, checksum, etc.) to suit their specific requirements.
 Samples
 *******
 
-* :zephyr:code-sample:`sdll` sample demonstrates the use of SDLL
+* :zephyr:code-sample:`sdll_basic` sample demonstrates the use of SDLL
   for data transmission using CRC-16 as the frame verification method.
 
 API Reference

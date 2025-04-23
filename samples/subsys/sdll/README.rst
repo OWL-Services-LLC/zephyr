@@ -1,4 +1,4 @@
-.. zephyr:code-sample:: sDLL
+.. zephyr:code-sample:: sdll_basic
    :name: SDLL sample application
 
    Receives an input from stdin and prints the resulting frame in hexadecimal

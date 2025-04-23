@@ -4,19 +4,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * @file sdll.h
- *
- * @brief Simple Data Link Layer (SDLL) API.
- */
-
 #ifndef ZEPHYR_INCLUDE_SDLL_SDLL_H_
 #define ZEPHYR_INCLUDE_SDLL_SDLL_H_
+
+/**
+ * @defgroup sdll_api Simple Data Link Layer (SDLL) API
+ * @ingroup utilities
+ * @{
+ */
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
+/**
+ * @brief Sensing Subsystem API
+ * @addtogroup sdll_api
+ * @{
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define SDLL_SEND_BUFFER_SIZE_MIN 4U
 
@@ -82,7 +91,8 @@ typedef void (*sdll_frame_sent_cb_t)(const sdll_context_id cid,
 					                 const size_t len);
 
 /**
- * @brief SDLL configuration
+ * @struct sdll_receiver_config
+ * @brief SDLL receiver configuration
  *
  * This structure is used to configure the SDLL frame receiver
  * on initialization.
@@ -104,7 +114,8 @@ struct sdll_receiver_config {
 };
 
 /**
- * @brief SDLL configuration
+ * @struct sdll_transmitter_config
+ * @brief SDLL transmitter configuration
  *
  * This structure is used to configure the SDLL frame transmitter
  * on initialization.
@@ -251,5 +262,13 @@ int sdll_receive_async(const sdll_context_id cid, const uint8_t *buffer, const s
 int sdll_send_async(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
 
 #endif /* CONFIG_SDLL_ASYNC */
+
+#ifdef __cplusplus
+}
+#endif
+
+/**
+ * @}
+ */
 
 #endif /* ZEPHYR_INCLUDE_SDLL_SDLL_H_ */
