@@ -8,7 +8,9 @@
 #define ZEPHYR_INCLUDE_SDLL_SDLL_H_
 
 /**
+ * @brief Simple Data Link Layer (SDLL)
  * @defgroup sdll_api Simple Data Link Layer (SDLL) API
+ * @version 1.0.0
  * @ingroup utilities
  * @{
  */
@@ -16,12 +18,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-
-/**
- * @brief Sensing Subsystem API
- * @addtogroup sdll_api
- * @{
- */
 
 #ifdef __cplusplus
 extern "C" {
