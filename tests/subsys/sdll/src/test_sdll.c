@@ -199,7 +199,7 @@ ZTEST(sdll_init, test_fails_invalid_receive_buffer_len)
     uint8_t rxbuffer[8];
     struct sdll_receiver_config rxcfg = {
         .receive_buffer = rxbuffer,
-        .receive_buffer_len = 1,
+        .receive_buffer_len = 0,
         .frame_received_cb = hook_frame_received_cb,
         .frame_check_fn = NULL,
     };
@@ -243,7 +243,7 @@ ZTEST(sdll_init, test_fails_invalid_send_buffer_len)
 
     struct sdll_transmitter_config txcfg = {
         .send_buffer = txbuffer,
-        .send_buffer_len = 1,
+        .send_buffer_len = SDLL_SEND_BUFFER_SIZE_MIN - 1,
         .frame_send_fn = hook_send_fn,
     };
 
@@ -537,6 +537,9 @@ ZTEST(sdll_receive, test_success_receiving_2_frames_no_validation)
     hook_add_frame_received_cb(expected_data_2, sizeof(expected_data_2));
 
     const int ret = sdll_receive(cid, data_to_receive, sizeof(data_to_receive));
+
+    /* no more bytes in buffer, should return 0 */
+
     zassert_equal(ret, 0, "sdll_receive failed");
 
     zassert_equal(sdll_deinit(cid), 0, "sdll_deinit failed");
@@ -579,7 +582,10 @@ ZTEST(sdll_receive, test_hook_validation_fails_fn)
     /* receive data */
 
     const int ret = sdll_receive(cid, data_to_receive, sizeof(data_to_receive));
-    zassert_equal(ret, 0, "sdll_receive failed");
+
+    /* no more bytes in buffer, should return 0 */
+
+    zassert_equal(ret, 0, "sdll_receive failed: %d", ret);
 
     /* deinitialize library */
 
@@ -594,6 +600,8 @@ ZTEST(sdll_receive, test_frame_not_finished)
         0x01,
         0x02,
     };
+
+    const int expected_sdll_receive_result = 3;
 
     uint8_t rxbuffer[12];
     struct sdll_receiver_config rxcfg = {
@@ -611,7 +619,10 @@ ZTEST(sdll_receive, test_frame_not_finished)
     /* receive data */
 
     const int ret = sdll_receive(cid, data_to_receive, sizeof(data_to_receive));
-    zassert_equal(ret, 0, "sdll_receive failed");
+
+    /* should return 3 bytes pending in receive buffer */
+
+    zassert_equal(ret, expected_sdll_receive_result, "sdll_receive failed");
 
 
     zassert_equal(sdll_deinit(cid), 0, "sdll_deinit failed");

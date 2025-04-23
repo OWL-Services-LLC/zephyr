@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-  /**
+/**
  * @file sdll.c
  *
  * @brief Simple Data Link Layer (SDLL) API implementation
@@ -19,29 +19,31 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sdll/sdll.h>
 
-#define SDLL_MINIMUM_BUFFER_SIZE 4
-
-#define SDLL_STATUS_NEW_FRAME_BIT (1U << 0)
+#define SDLL_STATUS_NEW_FRAME_BIT   (1U << 0)
 #define SDLL_STATUS_ESCAPE_NEXT_BIT (1U << 1)
 
 struct sdll_receiver_context {
-    int status;
-    size_t recv_frame_len;
-    struct sdll_receiver_config cfg;
-    struct k_mutex lock;
+	int status;
+	size_t recv_frame_len;
+	struct sdll_receiver_config cfg;
+#ifdef CONFIG_SDLL_THREAD_SAFE
+	struct k_mutex lock;
+#endif /* CONFIG_SDLL_THREAD_SAFE */
 };
 
 struct sdll_transmitter_context {
-    int status;
-    size_t send_frame_len;
-    struct sdll_transmitter_config cfg;
-    struct k_mutex lock;
+	int status;
+	size_t send_frame_len;
+	struct sdll_transmitter_config cfg;
+#ifdef CONFIG_SDLL_THREAD_SAFE
+	struct k_mutex lock;
+#endif /* CONFIG_SDLL_THREAD_SAFE */
 };
 
 struct sdll_context {
-    bool in_use;
-    struct sdll_receiver_context rx;
-    struct sdll_transmitter_context tx;
+	bool in_use;
+	struct sdll_receiver_context rx;
+	struct sdll_transmitter_context tx;
 };
 
 static struct sdll_context sdll_instance[CONFIG_SDLL_MAX_INSTANCES];
@@ -50,93 +52,91 @@ LOG_MODULE_REGISTER(sdll, CONFIG_SDLL_LOG_LEVEL);
 
 static inline bool context_is_valid(const sdll_context_id cid)
 {
-    return ((cid < CONFIG_SDLL_MAX_INSTANCES) && (sdll_instance[cid].in_use));
+	return ((cid < CONFIG_SDLL_MAX_INSTANCES) && (sdll_instance[cid].in_use));
 }
 
-static inline void reset_receiver_context(struct sdll_receiver_context * rx)
+static inline void reset_receiver_context(struct sdll_receiver_context *rx)
 {
-    rx->recv_frame_len = 0;
-    rx->status = 0;
+	rx->recv_frame_len = 0;
+	rx->status = 0;
 }
 
-static int build_frame(struct sdll_transmitter_context * tx, const uint8_t * payload, const size_t paylaod_len)
+static inline void reset_transmitter_context(struct sdll_transmitter_context *tx)
 {
-    int status = 0;
-    size_t nbytes = 0;
+	tx->send_frame_len = 0;
+	tx->status = 0;
+}
 
-    /** @todo Check if this function can be optimized */
+static int build_frame(struct sdll_transmitter_context *tx, const uint8_t *payload,
+		       const size_t paylaod_len)
+{
+	int status = 0;
+	size_t nbytes = 0;
 
-    tx->send_frame_len = 0;
-    tx->status = 0;
+	/** @todo Check if this function can be optimized */
 
-    while (nbytes < paylaod_len)
-    {
-        /* check if there is enough space in the send buffer */
-        if (tx->send_frame_len > tx->cfg.send_buffer_len)
-        {
-            status = -ENOBUFS;
-            break;
-        }
+	tx->send_frame_len = 0;
+	tx->status = 0;
 
-        /* add a boundary char on a new frame */
+	while (nbytes < paylaod_len) {
+		/* check if there is enough space in the send buffer */
+		if (tx->send_frame_len > tx->cfg.send_buffer_len) {
+			status = -ENOBUFS;
+			break;
+		}
 
-        if (!(tx->status & SDLL_STATUS_NEW_FRAME_BIT))
-        {
-            tx->status |= SDLL_STATUS_NEW_FRAME_BIT;
+		/* add a boundary char on a new frame */
 
-            tx->cfg.send_buffer[0] = CONFIG_SDLL_BOUNDARY_CHAR;
-            tx->send_frame_len++;
-            continue;
-        }
+		if (!(tx->status & SDLL_STATUS_NEW_FRAME_BIT)) {
+			tx->status |= SDLL_STATUS_NEW_FRAME_BIT;
 
-        /* check if the addition of a escape char is required */
+			tx->cfg.send_buffer[0] = CONFIG_SDLL_BOUNDARY_CHAR;
+			tx->send_frame_len++;
+			continue;
+		}
 
-        if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR || payload[nbytes] == CONFIG_SDLL_ESCAPE_CHAR)
-        {
-            /* re-check if there is enough space */
+		/* check if the addition of a escape char is required */
 
-            if (tx->send_frame_len + 1 > tx->cfg.send_buffer_len)
-            {
-                status = -ENOBUFS;
-                break;
-            }
+		if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR ||
+		    payload[nbytes] == CONFIG_SDLL_ESCAPE_CHAR) {
+			/* re-check if there is enough space */
 
-            /* add escape character */
+			if (tx->send_frame_len + 1 > tx->cfg.send_buffer_len) {
+				status = -ENOBUFS;
+				break;
+			}
 
-            tx->cfg.send_buffer[tx->send_frame_len] = CONFIG_SDLL_ESCAPE_CHAR;
-            tx->send_frame_len++;
+			/* add escape character */
 
-            /* add inverted data byte */
+			tx->cfg.send_buffer[tx->send_frame_len] = CONFIG_SDLL_ESCAPE_CHAR;
+			tx->send_frame_len++;
 
-            tx->cfg.send_buffer[tx->send_frame_len] = payload[nbytes] ^ CONFIG_SDLL_ESCAPE_MASK;
-            tx->send_frame_len++;
-        }
-        else
-        {
-            /* add data no escape char required */
+			/* add inverted data byte */
 
-            tx->cfg.send_buffer[tx->send_frame_len] = payload[nbytes];
-            tx->send_frame_len++;
-        }
+			tx->cfg.send_buffer[tx->send_frame_len] =
+				payload[nbytes] ^ CONFIG_SDLL_ESCAPE_MASK;
+			tx->send_frame_len++;
+		} else {
+			/* add data no escape char required */
 
-        nbytes++;
-    }
+			tx->cfg.send_buffer[tx->send_frame_len] = payload[nbytes];
+			tx->send_frame_len++;
+		}
 
-    if (nbytes == paylaod_len)
-    {
-        if (tx->send_frame_len + 1 > tx->cfg.send_buffer_len)
-        {
-            status = -ENOBUFS;
-        }
-        else
-        {
-            tx->cfg.send_buffer[tx->send_frame_len] = CONFIG_SDLL_BOUNDARY_CHAR;
-            tx->send_frame_len++;
-            status = nbytes;
-        }
-    }
+		nbytes++;
+	}
 
-    return status;
+	if (nbytes == paylaod_len) {
+		if (tx->send_frame_len + 1 > tx->cfg.send_buffer_len) {
+			status = -ENOBUFS;
+		} else {
+			tx->cfg.send_buffer[tx->send_frame_len] = CONFIG_SDLL_BOUNDARY_CHAR;
+			tx->send_frame_len++;
+			status = nbytes;
+		}
+	}
+
+	return status;
 }
 
 /**
@@ -153,316 +153,289 @@ static int build_frame(struct sdll_transmitter_context * tx, const uint8_t * pay
  * @return -ENOMSG if no frame is completed
  * @return -ENOBUFS if the receive buffer is full
  */
-static int receive_frame(struct sdll_receiver_context * rx, const uint8_t * payload, const size_t paylaod_len, size_t * bytes_processed)
+static int receive_frame(struct sdll_receiver_context *rx, const uint8_t *payload,
+			 const size_t paylaod_len, size_t *bytes_processed)
 {
-    int status = -ENOMSG;
-    size_t nbytes = 0;
+	int status = -ENOMSG;
+	size_t nbytes = 0;
 
-    for (; nbytes < paylaod_len; nbytes++)
-    {
-        if (rx->recv_frame_len == rx->cfg.receive_buffer_len)
-        {
-            status = -ENOBUFS;
-            break;
-        }
+	for (; nbytes < paylaod_len; nbytes++) {
+		if (rx->recv_frame_len == rx->cfg.receive_buffer_len) {
+			status = -ENOBUFS;
+			break;
+		}
 
-        if (rx->status & SDLL_STATUS_NEW_FRAME_BIT)
-        {
-            if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR)
-            {
-                /**
-                 * Frame end reached, returns FRAME_DONE.
-                 * Pending bytes are not processed in this iteration.
-                 * @todo Check if this is the right behavior
-                 */
+		if (rx->status & SDLL_STATUS_NEW_FRAME_BIT) {
+			if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR) {
+				/**
+				 * Frame end reached, returns FRAME_DONE.
+				 * Pending bytes are not processed in this iteration.
+				 * @todo Check if this is the right behavior
+				 */
 
-                rx->status &= ~SDLL_STATUS_NEW_FRAME_BIT;
-                status = 0;
-                nbytes++; /* count boundary char */
-                break;
-            }
-            else if (payload[nbytes] == CONFIG_SDLL_ESCAPE_CHAR)
-            {
-                /* set escape next bit */
+				rx->status &= ~SDLL_STATUS_NEW_FRAME_BIT;
+				status = 0;
+				nbytes++; /* count boundary char */
+				break;
+			} else if (payload[nbytes] == CONFIG_SDLL_ESCAPE_CHAR) {
+				/* set escape next bit */
 
-                rx->status |= SDLL_STATUS_ESCAPE_NEXT_BIT;
-            }
-            else
-            {
-                if ((rx->status & SDLL_STATUS_ESCAPE_NEXT_BIT) == SDLL_STATUS_ESCAPE_NEXT_BIT)
-                {
-                    /* add inverted data byte */
+				rx->status |= SDLL_STATUS_ESCAPE_NEXT_BIT;
+			} else {
+				if ((rx->status & SDLL_STATUS_ESCAPE_NEXT_BIT) ==
+				    SDLL_STATUS_ESCAPE_NEXT_BIT) {
+					/* add inverted data byte */
 
-                    rx->cfg.receive_buffer[rx->recv_frame_len] = payload[nbytes] ^ CONFIG_SDLL_ESCAPE_MASK;
-                    rx->recv_frame_len++;
-                    rx->status &= ~SDLL_STATUS_ESCAPE_NEXT_BIT;
-                }
-                else
-                {
-                    /* add data byte */
+					rx->cfg.receive_buffer[rx->recv_frame_len] =
+						payload[nbytes] ^ CONFIG_SDLL_ESCAPE_MASK;
+					rx->recv_frame_len++;
+					rx->status &= ~SDLL_STATUS_ESCAPE_NEXT_BIT;
+				} else {
+					/* add data byte */
 
-                    rx->cfg.receive_buffer[rx->recv_frame_len] = payload[nbytes];
-                    rx->recv_frame_len++;
-                }
-            }
-        }
-        else if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR)
-        {
-            rx->status |= SDLL_STATUS_NEW_FRAME_BIT;
-            rx->recv_frame_len = 0;
-        }
-        else
-        {
-            /* out of frame */
-        }
-    }
+					rx->cfg.receive_buffer[rx->recv_frame_len] =
+						payload[nbytes];
+					rx->recv_frame_len++;
+				}
+			}
+		} else if (payload[nbytes] == CONFIG_SDLL_BOUNDARY_CHAR) {
+			rx->status |= SDLL_STATUS_NEW_FRAME_BIT;
+			rx->recv_frame_len = 0;
+		} else {
+			/* out of frame */
+		}
+	}
 
-    *bytes_processed = nbytes;
+	*bytes_processed = nbytes;
 
-    return status;
+	return status;
 }
 
-
-
-
-int sdll_init(const struct sdll_receiver_config * rxcfg, const struct sdll_transmitter_config * txcfg)
+int sdll_init(const struct sdll_receiver_config *rxcfg, const struct sdll_transmitter_config *txcfg)
 {
-    sdll_context_id new_cid = 0;
+	sdll_context_id new_cid = 0;
 
-    if ((rxcfg == NULL) && (txcfg == NULL))
-    {
-        LOG_ERR("At least one configuration (receiver/transmitter) must be provided");
-        return -EINVAL;
-    }
+	if ((rxcfg == NULL) && (txcfg == NULL)) {
+		LOG_ERR("At least one configuration (receiver/transmitter) must be provided");
+		return -EINVAL;
+	}
 
-    if (rxcfg != NULL)
-    {
-        if (rxcfg->receive_buffer == NULL || rxcfg->receive_buffer_len < SDLL_MINIMUM_BUFFER_SIZE)
-        {
-            LOG_ERR("Invalid receiver buffer");
-            return -EINVAL;
-        }
-        else if (rxcfg->frame_received_cb == NULL)
-        {
-            LOG_ERR("Invalid frame received callback");
-            return -EINVAL;
-        }
-    }
+	if (rxcfg != NULL) {
+		if (rxcfg->receive_buffer == NULL ||
+		    rxcfg->receive_buffer_len == 0) {
+			LOG_ERR("Invalid receiver buffer");
+			return -EINVAL;
+		} else if (rxcfg->frame_received_cb == NULL) {
+			LOG_ERR("Invalid frame received callback");
+			return -EINVAL;
+		}
+	}
 
-    if (txcfg != NULL)
-    {
-        if (txcfg->send_buffer == NULL || txcfg->send_buffer_len < SDLL_MINIMUM_BUFFER_SIZE)
-        {
-            LOG_ERR("Invalid transmitter buffer");
-            return -EINVAL;
-        }
-        else if (txcfg->frame_send_fn == NULL)
-        {
-            LOG_ERR("Invalid frame send function");
-            return -EINVAL;
-        }
-    }
+	if (txcfg != NULL) {
+		if (txcfg->send_buffer == NULL ||
+		    txcfg->send_buffer_len < SDLL_SEND_BUFFER_SIZE_MIN) {
+			LOG_ERR("Invalid transmitter buffer");
+			return -EINVAL;
+		} else if (txcfg->frame_send_fn == NULL) {
+			LOG_ERR("Invalid frame send function");
+			return -EINVAL;
+		}
+	}
 
-    /* Find a free context */
+	/* Find a free context */
 
-    for (; new_cid < CONFIG_SDLL_MAX_INSTANCES; new_cid++)
-    {
-        if (!sdll_instance[new_cid].in_use)
-        {
-            break;
-        }
-    }
+	for (; new_cid < CONFIG_SDLL_MAX_INSTANCES; new_cid++) {
+		if (!sdll_instance[new_cid].in_use) {
+			break;
+		}
+	}
 
-    if (new_cid == CONFIG_SDLL_MAX_INSTANCES)
-    {
-        return -ENOMEM;
-    }
+	if (new_cid == CONFIG_SDLL_MAX_INSTANCES) {
+		return -ENOMEM;
+	}
 
-    /* Initialize context */
+	/* Initialize context */
 
-    sdll_instance[new_cid].in_use = true;
+	sdll_instance[new_cid].in_use = true;
 
-    if (rxcfg != NULL)
-    {
-        sdll_instance[new_cid].rx.cfg = *rxcfg;
-        k_mutex_init(&sdll_instance[new_cid].rx.lock);
-    }
+	if (rxcfg != NULL) {
+		sdll_instance[new_cid].rx.cfg = *rxcfg;
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_init(&sdll_instance[new_cid].rx.lock);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
 
-    if (txcfg != NULL)
-    {
-        sdll_instance[new_cid].tx.cfg = *txcfg;
-        k_mutex_init(&sdll_instance[new_cid].tx.lock);
-    }
+	if (txcfg != NULL) {
+		sdll_instance[new_cid].tx.cfg = *txcfg;
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_init(&sdll_instance[new_cid].tx.lock);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
 
-    /* Return new context id */
+	/* Return new context id */
 
-    return new_cid;
+	return new_cid;
 }
 
 int sdll_deinit(const sdll_context_id cid)
 {
-    if (!context_is_valid(cid))
-    {
-        return -EINVAL;
-    }
+	if (!context_is_valid(cid)) {
+		return -EINVAL;
+	}
 
-    /* reset receiver context */
+	/* reset receiver context */
 
-    if (sdll_instance[cid].rx.cfg.receive_buffer != NULL)
-    {
-        k_mutex_lock(&sdll_instance[cid].rx.lock, K_FOREVER);
-        memset(&sdll_instance[cid].rx, 0, sizeof(sdll_instance[cid].rx));
-        k_mutex_unlock(&sdll_instance[cid].rx.lock);
-    }
+	if (sdll_instance[cid].rx.cfg.receive_buffer != NULL) {
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_lock(&sdll_instance[cid].rx.lock, K_FOREVER);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+		reset_receiver_context(&sdll_instance[cid].rx);
+		memset(&sdll_instance[cid].rx.cfg, 0, sizeof(sdll_instance[cid].rx.cfg));
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_unlock(&sdll_instance[cid].rx.lock);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
 
+	/* reset transmitter context */
 
-    /* reset transmitter context */
+	if (sdll_instance[cid].tx.cfg.send_buffer != NULL) {
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_lock(&sdll_instance[cid].tx.lock, K_FOREVER);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+		reset_transmitter_context(&sdll_instance[cid].tx);
+		memset(&sdll_instance[cid].tx, 0, sizeof(sdll_instance[cid].tx.cfg));
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		k_mutex_unlock(&sdll_instance[cid].tx.lock);
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
 
-    if (sdll_instance[cid].tx.cfg.send_buffer != NULL)
-    {
-        k_mutex_lock(&sdll_instance[cid].tx.lock, K_FOREVER);
-        memset(&sdll_instance[cid].tx, 0, sizeof(sdll_instance[cid].tx));
-        k_mutex_unlock(&sdll_instance[cid].tx.lock);
-    }
+	/* free context */
 
-    /* free context */
+	sdll_instance[cid].in_use = false;
 
-    sdll_instance[cid].in_use = false;
-
-    return 0;
+	return 0;
 }
 
-int sdll_receive(const sdll_context_id cid, const uint8_t * buffer, const size_t len)
+int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t len)
 {
-    int status = 0;
+	int status = 0;
 
-    if (!context_is_valid(cid) || !buffer || !len)
-    {
-        status = -EINVAL;
-    }
-    else if (sdll_instance[cid].rx.cfg.receive_buffer == NULL)
-    {
-        /* receiver disabled */
+	if (!context_is_valid(cid) || !buffer || !len) {
+		status = -EINVAL;
+	} else if (sdll_instance[cid].rx.cfg.receive_buffer == NULL) {
+		/* receiver disabled */
 
-        status = -EPERM;
-    }
-    else if (len > sdll_instance[cid].rx.cfg.receive_buffer_len)
-    {
-        status = -ENOMEM;
-    }
-    else
-    {
-        if (k_mutex_lock(&sdll_instance[cid].rx.lock, K_MSEC(CONFIG_SDLL_MUTEX_TIMEOUT_MS)) == 0)
-        {
-            size_t read_index = 0;
-            size_t processed_bytes = 0;
+		status = -EPERM;
+	} else if (len > sdll_instance[cid].rx.cfg.receive_buffer_len) {
+		status = -ENOMEM;
+	} else {
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		if (k_mutex_lock(&sdll_instance[cid].rx.lock,
+				 K_MSEC(CONFIG_SDLL_MUTEX_TIMEOUT_MS)) == 0) {
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+			size_t read_index = 0;
+			size_t processed_bytes = 0;
 
-            while (read_index < len)
-            {
-                /**
-                 * receive_frame() returns:
-                 * - 0 when a frame is completed.
-                 * - -ENOMSG If all bytes has been processed but frame is incomplete.
-                 * - -ENOMEM if the receive buffer is full.
-                 *
-                 * And the number of bytes processed is copied in processed_bytes.
-                 */
+			while (read_index < len) {
+				/**
+				 * receive_frame() returns:
+				 * - 0 when a frame is completed.
+				 * - -ENOMSG If all bytes has been processed but frame is
+				 * incomplete.
+				 * - -ENOMEM if the receive buffer is full.
+				 *
+				 * And the number of bytes processed is copied in processed_bytes.
+				 */
 
-                const int receive_status = receive_frame(&sdll_instance[cid].rx, \
-                    &buffer[read_index], \
-                    len - read_index, \
-                    &processed_bytes);
+				const int receive_status =
+					receive_frame(&sdll_instance[cid].rx, &buffer[read_index],
+						      len - read_index, &processed_bytes);
 
-                read_index += processed_bytes;
+				read_index += processed_bytes;
 
-                if (receive_status == 0)
-                {
-                    /* validate frame if frame_check_fn is provided */
+				if (receive_status == 0) {
+					/* validate frame if frame_check_fn is provided */
 
-                    const bool frame_is_valid = ((sdll_instance[cid].rx.cfg.frame_check_fn) != NULL) ? \
-                        sdll_instance[cid].rx.cfg.frame_check_fn(cid, \
-                            sdll_instance[cid].rx.cfg.receive_buffer, \
-                            sdll_instance[cid].rx.recv_frame_len) : \
-                        true;
+					const bool frame_is_valid =
+						((sdll_instance[cid].rx.cfg.frame_check_fn) != NULL)
+							? sdll_instance[cid].rx.cfg.frame_check_fn(
+								  cid,
+								  sdll_instance[cid]
+									  .rx.cfg.receive_buffer,
+								  sdll_instance[cid]
+									  .rx.recv_frame_len)
+							: true;
 
-                    /* call frame received callback */
+					/* call frame received callback */
 
-                    if (frame_is_valid)
-                    {
-                        sdll_instance[cid].rx.cfg.frame_received_cb(cid, \
-                            sdll_instance[cid].rx.cfg.receive_buffer, \
-                            sdll_instance[cid].rx.recv_frame_len);
-                    }
+					if (frame_is_valid) {
+						sdll_instance[cid].rx.cfg.frame_received_cb(
+							cid,
+							sdll_instance[cid].rx.cfg.receive_buffer,
+							sdll_instance[cid].rx.recv_frame_len);
+					}
 
-                    reset_receiver_context(&sdll_instance[cid].rx);
-                }
-                else if (receive_status != -ENOMSG)
-                {
-                    LOG_ERR("Receiver failure: %d (processed %zu bytes)", \
-                        receive_status, \
-                        read_index);
+					reset_receiver_context(&sdll_instance[cid].rx);
+				} else if (receive_status != -ENOMSG) {
+					LOG_ERR("Receiver failure: %d (processed %zu bytes)",
+						receive_status, read_index);
 
-                    /* receiver failure, reset context, propagate error and break loop */
+					/* receiver failure, reset context, propagate error and
+					 * break loop */
 
-                    reset_receiver_context(&sdll_instance[cid].rx);
-                    status = receive_status;
-                    break;
-                }
-                else
-                {
-                    /* no frame completed, continue to next iteration */
-                }
-            }
+					reset_receiver_context(&sdll_instance[cid].rx);
+					status = receive_status;
+					break;
+				} else {
+					/* no frame completed, continue to next iteration */
+				}
+			}
 
-            k_mutex_unlock(&sdll_instance[cid].rx.lock);
-        }
-        else
-        {
-            status = -EAGAIN;
-        }
-    }
+#ifdef CONFIG_SDLL_THREAD_SAFE
+			k_mutex_unlock(&sdll_instance[cid].rx.lock);
+		} else {
+			status = -EAGAIN;
+		}
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
 
-    return status;
+	return (status < 0) ? status : (int) sdll_instance[cid].rx.recv_frame_len;
 }
 
-int sdll_send(const sdll_context_id cid, const uint8_t * buffer, const size_t len)
+int sdll_send(const sdll_context_id cid, const uint8_t *buffer, const size_t len)
 {
-    int status = 0;
+	int status = 0;
 
-    if (!context_is_valid(cid) || !buffer || !len)
-    {
-        status = -EINVAL;
-    }
-    else if (sdll_instance[cid].tx.cfg.send_buffer == NULL)
-    {
-        /* transmitter disabled */
+	if (!context_is_valid(cid) || !buffer || !len) {
+		status = -EINVAL;
+	} else if (sdll_instance[cid].tx.cfg.send_buffer == NULL) {
+		/* transmitter disabled */
 
-        status = -EPERM;
-    }
-    else
-    {
-        if (k_mutex_lock(&sdll_instance[cid].tx.lock, K_MSEC(CONFIG_SDLL_MUTEX_TIMEOUT_MS)) == 0)
-        {
-            status = build_frame(&sdll_instance[cid].tx, buffer, len);
-            if (status == len)
-            {
-                const int sentBytes = sdll_instance[cid].tx.cfg.frame_send_fn(cid, \
-                    sdll_instance[cid].tx.cfg.send_buffer, \
-                    sdll_instance[cid].tx.send_frame_len);
+		status = -EPERM;
+	} else {
+#ifdef CONFIG_SDLL_THREAD_SAFE
+		if (k_mutex_lock(&sdll_instance[cid].tx.lock,
+				 K_MSEC(CONFIG_SDLL_MUTEX_TIMEOUT_MS)) == 0) {
+#endif /* CONFIG_SDLL_THREAD_SAFE */
 
-                if (sentBytes != sdll_instance[cid].tx.send_frame_len)
-                {
-                    status = -EIO;
-                }
-            }
+			status = build_frame(&sdll_instance[cid].tx, buffer, len);
+			if (status == len) {
+				const int sentBytes = sdll_instance[cid].tx.cfg.frame_send_fn(
+					cid, sdll_instance[cid].tx.cfg.send_buffer,
+					sdll_instance[cid].tx.send_frame_len);
 
-            k_mutex_unlock(&sdll_instance[cid].tx.lock);
-        }
-        else
-        {
-            status = -EAGAIN;
-        }
-    }
+				if (sentBytes != sdll_instance[cid].tx.send_frame_len) {
+					status = -EIO;
+				}
+			}
 
-    return status;
+#ifdef CONFIG_SDLL_THREAD_SAFE
+			k_mutex_unlock(&sdll_instance[cid].tx.lock);
+		} else {
+			status = -EAGAIN;
+		}
+#endif /* CONFIG_SDLL_THREAD_SAFE */
+	}
+
+	return status;
 }

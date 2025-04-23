@@ -19,6 +19,14 @@ if SDLL
           This value should be set to the number of ports that will
           be used with SDLL. The default value is 1.
 
+    config SDLL_THREAD_SAFE
+        bool "Thread safe"
+        default y
+        help
+          Enable thread safety for SDLL. This will use a mutex to
+          protect access to the SDLL instance. This is required if
+          multiple threads will be using the same SDLL instance.
+
     config SDLL_MUTEX_TIMEOUT_MS
         int "Timeout in milliseconds"
         default 100
