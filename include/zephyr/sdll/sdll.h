@@ -180,7 +180,7 @@ int sdll_deinit(const sdll_context_id context_id);
  *
  * @param cid SDLL context id
  * @param data Data received
- * @param data_len Length of the received data
+ * @param len Length of the received data
  * @return Number of bytes in the receive buffer
  * @return -EPERM when the receiver is disabled
  * @return -EINVAL when one or more parameters are invalid
@@ -230,13 +230,13 @@ int sdll_send(const sdll_context_id cid,
  * (configurable).
  *
  * @param cid SDLL context id
- * @param buffer Buffer with received data
- * @param len Length of the buffer
+ * @param data Data received
+ * @param len Length of the received data
  * @return Number of bytes processed.
  * @return -EINVAL if one or more parameters are invalid.
  * @return -ENOMEM if the received frame is too big for the buffer.
  */
-int sdll_receive_async(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
+int sdll_receive_async(const sdll_context_id cid, const uint8_t *data, const size_t len);
 
 /** @todo Add related configs to the FHD */
 /** @todo Consider providing the callback in this function instead of config */
@@ -250,12 +250,12 @@ int sdll_receive_async(const sdll_context_id cid, const uint8_t *buffer, const s
  * (configurable). Provided callback for `frame_sent` is called in this context.
  *
  * @param cid SDLL context id
- * @param buffer Buffer with data to send
- * @param len Length of the buffer
+ * @param data Data to be sent
+ * @param len Data length
  * @return Number of bytes sent.
  * @return -EINVAL if one or more parameters are invalid
  */
-int sdll_send_async(const sdll_context_id cid, const uint8_t *buffer, const size_t len);
+int sdll_send_async(const sdll_context_id cid, const uint8_t *data, const size_t len);
 
 #endif /* CONFIG_SDLL_ASYNC */
 
