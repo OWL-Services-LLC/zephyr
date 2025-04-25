@@ -179,14 +179,14 @@ int sdll_deinit(const sdll_context_id context_id);
  * function and frame received callbacks are called in this context.
  *
  * @param cid SDLL context id
- * @param buffer Buffer with received data
- * @param len Length of the buffer
- * @return Number of bytes in the receive buffer.
- * @return -EPERM if the receiver is disabled
- * @return -EINVAL if one or more parameters are invalid.
- * @return -ENOMEM if the received frame is too big for the receiver buffer.
- * @return -EAGAIN if `CONFIG_SDLL_THREAD_SAFE` is enabled and the mutex is not
- *         available.
+ * @param data Data received
+ * @param data_len Length of the received data
+ * @return Number of bytes in the receive buffer
+ * @return -EPERM when the receiver is disabled
+ * @return -EINVAL when one or more parameters are invalid
+ * @return -ENOMEM when the received frame is too big for the receiver buffer
+ * @return -EAGAIN when `CONFIG_SDLL_THREAD_SAFE` is enabled and the mutex is
+ *         not available
  */
 int sdll_receive(const sdll_context_id cid,
 	             const uint8_t *data,
@@ -201,16 +201,16 @@ int sdll_receive(const sdll_context_id cid,
  * Function waits for the `frame_send` function to finish before returning.
  *
  * @param cid SDLL context id
- * @param buffer Buffer with data to send
+ * @param data Data to be sent
  * @param len Length of the buffer
  * @return Number of bytes sent.
- * @return -EINVAL if one or more parameters are invalid
- * @return -EPERM if the transmitter is disabled
- * @return -ENOBUFS if the frame is too big for the transmitter buffer
- * @return -EIO if the frame send function fails to send the frame (returns a
+ * @return -EINVAL when one or more parameters are invalid
+ * @return -EPERM when the transmitter is disabled
+ * @return -ENOBUFS when the frame is too big for the transmitter buffer
+ * @return -EIO when the frame send function fails to send the frame (returns a
  * 			negative value)
- * @return -EAGAIN if `CONFIG_SDLL_THREAD_SAFE` is enabled and the mutex is not
- *         available.
+ * @return -EAGAIN when `CONFIG_SDLL_THREAD_SAFE` is enabled and the mutex is
+ *         not available.
  */
 int sdll_send(const sdll_context_id cid,
 	          const uint8_t *data,
