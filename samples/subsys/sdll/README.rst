@@ -1,6 +1,6 @@
 .. zephyr:code-sample:: sdll-basic
    :name: SDLL basic sample application
-   :relevant-api: sdll
+   :relevant-api: sdll_api
 
    Receives an input from stdin and prints the resulting frame in hexadecimal
    format
