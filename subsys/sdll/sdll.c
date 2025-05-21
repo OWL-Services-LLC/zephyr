@@ -153,8 +153,9 @@ static int build_frame(struct sdll_transmitter_context *tx, const uint8_t *paylo
  * @return -ENOMSG if no frame is completed
  * @return -ENOBUFS if the receive buffer is full
  */
-static int receive_frame(struct sdll_receiver_context *rx, const uint8_t *payload,
-			 const size_t paylaod_len, size_t *bytes_processed)
+static int receive_frame(struct sdll_receiver_context *rx,
+						 const uint8_t *payload, const size_t paylaod_len,
+						 size_t *bytes_processed)
 {
 	int status = -ENOMSG;
 	size_t nbytes = 0;
@@ -211,7 +212,8 @@ static int receive_frame(struct sdll_receiver_context *rx, const uint8_t *payloa
 	return status;
 }
 
-int sdll_init(const struct sdll_receiver_config *rxcfg, const struct sdll_transmitter_config *txcfg)
+int sdll_init(const struct sdll_receiver_config *rxcfg,
+	          const struct sdll_transmitter_config *txcfg)
 {
 	sdll_context_id new_cid = 0;
 
@@ -316,15 +318,15 @@ int sdll_deinit(const sdll_context_id cid)
 	return 0;
 }
 
-int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t len)
+int sdll_receive(const sdll_context_id cid, const uint8_t *data,
+				 const size_t len)
 {
 	int status = 0;
 
-	if (!context_is_valid(cid) || !buffer || !len) {
+	if (!context_is_valid(cid) || !data || !len) {
 		status = -EINVAL;
 	} else if (sdll_instance[cid].rx.cfg.receive_buffer == NULL) {
 		/* receiver disabled */
-
 		status = -EPERM;
 	} else if (len > sdll_instance[cid].rx.cfg.receive_buffer_len) {
 		status = -ENOMEM;
@@ -347,13 +349,13 @@ int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t 
 				 * And the number of bytes processed is copied in processed_bytes.
 				 */
 
-				const int receive_status =
-					receive_frame(&sdll_instance[cid].rx, &buffer[read_index],
+				const int receive_result =
+					receive_frame(&sdll_instance[cid].rx, &data[read_index],
 						      len - read_index, &processed_bytes);
 
 				read_index += processed_bytes;
 
-				if (receive_status == 0) {
+				if (receive_result == 0) {
 					/* validate frame if frame_check_fn is provided */
 
 					const bool frame_is_valid =
@@ -376,15 +378,17 @@ int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t 
 					}
 
 					reset_receiver_context(&sdll_instance[cid].rx);
-				} else if (receive_status != -ENOMSG) {
+
+				} else if (receive_result != -ENOMSG) {
+
 					LOG_ERR("Receiver failure: %d (processed %zu bytes)",
-						receive_status, read_index);
+						receive_result, read_index);
 
 					/* receiver failure, reset context, propagate error and
 					 * break loop */
 
 					reset_receiver_context(&sdll_instance[cid].rx);
-					status = receive_status;
+					status = receive_result;
 					break;
 				} else {
 					/* no frame completed, continue to next iteration */
@@ -402,7 +406,8 @@ int sdll_receive(const sdll_context_id cid, const uint8_t *buffer, const size_t 
 	return (status < 0) ? status : (int) sdll_instance[cid].rx.recv_frame_len;
 }
 
-int sdll_send(const sdll_context_id cid, const uint8_t *buffer, const size_t len)
+int sdll_send(const sdll_context_id cid, const uint8_t *buffer,
+			  const size_t len)
 {
 	int status = 0;
 
@@ -420,12 +425,29 @@ int sdll_send(const sdll_context_id cid, const uint8_t *buffer, const size_t len
 
 			status = build_frame(&sdll_instance[cid].tx, buffer, len);
 			if (status == len) {
-				const int sentBytes = sdll_instance[cid].tx.cfg.frame_send_fn(
-					cid, sdll_instance[cid].tx.cfg.send_buffer,
-					sdll_instance[cid].tx.send_frame_len);
+				size_t pending_bytes = sdll_instance[cid].tx.send_frame_len;
 
-				if (sentBytes != sdll_instance[cid].tx.send_frame_len) {
-					status = -EIO;
+				/**
+				 * Here `frame_send_fn()` is called in a loop until all bytes
+				 * are sent. This is to ensure that the function is not blocked
+				 * in case of a slow transport layer.
+				 */
+
+				while (pending_bytes > 0) {
+					const size_t send_buffer_start = sdll_instance[cid].tx.send_frame_len
+						- pending_bytes;
+
+					const uint8_t *send_buffer = &sdll_instance[cid].tx.cfg.send_buffer[send_buffer_start];
+
+					const int send_result = sdll_instance[cid].tx.cfg.frame_send_fn(
+						cid, send_buffer, pending_bytes);
+
+					if (send_result > 0) {
+						status = -EIO;
+						break;
+					}
+
+					pending_bytes -= send_result;
 				}
 			}
 

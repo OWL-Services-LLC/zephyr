@@ -23,12 +23,19 @@
 extern "C" {
 #endif
 
+/**
+ * @brief SDLL minimal buffer size
+ *
+ * This is the minimum size of the buffer used to store received or sent frames.
+ * The size must be at least 4 bytes to store 1 byte of data and 3 bytes of
+ * overhead in the worst case (boundaries and escape chars).
+ */
 #define SDLL_SEND_BUFFER_SIZE_MIN 4U
 
 /**
  * @brief SDLL Context ID
  */
-typedef uint8_t sdll_context_id;
+typedef unsigned int sdll_context_id;
 
 /**
  * @brief SDLL frame received callback
@@ -63,7 +70,8 @@ typedef bool (*sdll_frame_validator_t)(const sdll_context_id cid,
 /**
  * @brief SDLL frame sender function
  *
- * This function is called to send a frame.
+ * This function is called to send a frame to the transport layer. The function
+ * must return the number of bytes sent or a negative value in case of error.
  *
  * @param data Pointer to the data to send
  * @param len Length of the data to send
@@ -73,18 +81,6 @@ typedef bool (*sdll_frame_validator_t)(const sdll_context_id cid,
 typedef int (*sdll_frame_sender_t)(const sdll_context_id cid,
 	                               const uint8_t *data,
 					               const size_t len);
-
-/**
- * @brief SDLL frame sent callback
- *
- * This function is called when a frame is completely sent.
- *
- * @param data Pointer to the sent data
- * @param len Length of the sent data
- */
-typedef void (*sdll_frame_sent_cb_t)(const sdll_context_id cid,
-	                                 const uint8_t *data,
-					                 const size_t len);
 
 /**
  * @struct sdll_receiver_config
@@ -122,16 +118,11 @@ struct sdll_transmitter_config {
 	uint8_t *send_buffer;
 
 	/** @brief Length of the buffer. Must be at least
-	 * `SDLL_MINIMUM_BUFFER_SIZE` bytes */
+	 * `SDLL_SEND_BUFFER_SIZE_MIN` bytes */
 	size_t send_buffer_len;
 
 	/** @brief Frame send function */
 	sdll_frame_sender_t frame_send_fn;
-
-#ifdef CONFIG_SDLL_ASYNC
-	/** @brief Frame sent callback */
-	sdll_frame_sent_cb_t frame_sent_cb;
-#endif /* CONFIG_SDLL_ASYNC */
 };
 
 /**
@@ -140,9 +131,9 @@ struct sdll_transmitter_config {
  * This function initializes the SDLL library and configures both the
  * transmitter stage and/or the receiver stage if provided.
  *
- * @pre: buffers to store received or packed frames must provided by the
+ * @pre Buffers to store received or packed frames must provided by the
  * application inside the configuration structures.
- * @pre: The send buffer size must be at least `SDLL_MINIMUM_BUFFER_SIZE` bytes.
+ * @pre The send buffer size must be at least `SDLL_SEND_BUFFER_SIZE_MIN` bytes.
  *
  * @param rxcfg SDLL receiver configuration (NULL disables receiver)
  * @param txcfg SDLL transmitter configuration (NULL disables transmitter)
@@ -216,48 +207,6 @@ int sdll_send(const sdll_context_id cid,
 	          const uint8_t *data,
 			  const size_t len);
 
-#ifdef CONFIG_SDLL_ASYNC
-
-/** @todo Add related configs to the FHD */
-/** @todo Consider providing the callback in this function instead of config */
-/**
- * @brief SDLL frame reception function
- *
- * This function must be called when a new frame is received.
- *
- * The function does not block and returns immediately after the buffer is
- * enqueued to be processed by the system workqueue or a dedicated thread
- * (configurable).
- *
- * @param cid SDLL context id
- * @param data Data received
- * @param len Length of the received data
- * @return Number of bytes processed.
- * @return -EINVAL if one or more parameters are invalid.
- * @return -ENOMEM if the received frame is too big for the buffer.
- */
-int sdll_receive_async(const sdll_context_id cid, const uint8_t *data, const size_t len);
-
-/** @todo Add related configs to the FHD */
-/** @todo Consider providing the callback in this function instead of config */
-/**
- * @brief SDLL frame send function
- *
- * This function sends a frame by calling the provided frame send function.
- *
- * The function does not block and returns immediately after the buffer is
- * enqueued to be sent by the system workqueue or a dedicated thread
- * (configurable). Provided callback for `frame_sent` is called in this context.
- *
- * @param cid SDLL context id
- * @param data Data to be sent
- * @param len Data length
- * @return Number of bytes sent.
- * @return -EINVAL if one or more parameters are invalid
- */
-int sdll_send_async(const sdll_context_id cid, const uint8_t *data, const size_t len);
-
-#endif /* CONFIG_SDLL_ASYNC */
 
 #ifdef __cplusplus
 }

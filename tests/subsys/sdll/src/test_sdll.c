@@ -40,6 +40,22 @@ static int hook_send_fn(const sdll_context_id cid, const uint8_t * data,
     return len;
 }
 
+static int hook_send_1byte_fn(const sdll_context_id cid, const uint8_t * data,
+    const size_t len)
+{
+    zassert_not_null(data, "data is NULL");
+    zassert_true(len > 0, "len is 0");
+    zassert_true(len <= COMPARE_BUFFERS_SIZE, "buffer overflow");
+
+    zassert_true(hook_frame_send_fn_data_count < COMPARE_BUFFERS_MAX, "buffer count overflow");
+
+    memcpy(hook_frame_send_fn_data[hook_frame_send_fn_data_count].buffer, data, 1);
+    hook_frame_send_fn_data[hook_frame_send_fn_data_count].length = 1;
+    hook_frame_send_fn_data_count++;
+
+    return 1;
+}
+
 static void hook_reset_send_fn(void)
 {
     hook_frame_send_fn_data_last = 0;
@@ -320,6 +336,54 @@ ZTEST(sdll_send, test_success)
         .send_buffer = txbuffer,
         .send_buffer_len = sizeof(txbuffer),
         .frame_send_fn = hook_send_fn,
+    };
+
+    hook_reset_send_fn();
+
+    /* initialize library */
+
+    const int cid = sdll_init(NULL, &txcfg);
+    zassert_true(cid >= 0, "sdll_init failed, result = %d", cid);
+
+    /* send data */
+
+    const int ret = sdll_send(cid, data_to_send, sizeof(data_to_send));
+    zassert_equal(ret, sizeof(data_to_send), "sdll_send failed, result = %d", ret);
+
+    /* verify sent frame */
+
+    hook_check_send_fn(expected_frame, sizeof(expected_frame));
+
+    zassert_equal(sdll_deinit(cid), 0, "sdll_deinit failed");
+}
+
+
+ZTEST(sdll_send, test_success_polling_1_byte)
+{
+    const uint8_t data_to_send[] = {
+        0x00,
+        0x01,
+        CONFIG_SDLL_ESCAPE_CHAR,
+        0x02,
+        0x03
+    };
+
+    const uint8_t expected_frame[] = {
+        CONFIG_SDLL_BOUNDARY_CHAR,
+        0x00,
+        0x01,
+        CONFIG_SDLL_ESCAPE_CHAR,
+        (CONFIG_SDLL_ESCAPE_CHAR ^ CONFIG_SDLL_ESCAPE_MASK),
+        0x02,
+        0x03,
+        CONFIG_SDLL_BOUNDARY_CHAR
+    };
+
+    uint8_t txbuffer[12];
+    struct sdll_transmitter_config txcfg = {
+        .send_buffer = txbuffer,
+        .send_buffer_len = sizeof(txbuffer),
+        .frame_send_fn = hook_send_1byte_fn,
     };
 
     hook_reset_send_fn();
