@@ -1,0 +1,17 @@
+common:
+  tags:
+    - subsys
+    - sdll
+
+tests:
+  sdll.api.thread_safe:
+    platform_allow: native_sim
+    tags: sdll
+    extra_configs:
+      - CONFIG_SDLL_THREAD_SAFE=y
+
+  sdll.api.non_thread_safe:
+    platform_allow: native_sim
+    tags: sdll
+    extra_configs:
+      - CONFIG_SDLL_THREAD_SAFE=n

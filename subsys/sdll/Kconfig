@@ -1,0 +1,72 @@
+# Copyright (C) 2025 - OWL Services LLC
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig SDLL
+    bool "Simple Data Link Layer"
+    help
+      SDLL is a library that provides a simple data
+      link layer for sending and receiving data over
+      a serial connection.
+
+
+if SDLL
+
+    config SDLL_MAX_INSTANCES
+        int "Max instances"
+        default 1
+        help
+          The maximum number of SDLL instances that can be created.
+          This value should be set to the number of ports that will
+          be used with SDLL. The default value is 1.
+
+    config SDLL_THREAD_SAFE
+        bool "Thread safe"
+        default y
+        help
+          Enable thread safety for SDLL. This will use a mutex to
+          protect access to the SDLL instance. This is required if
+          multiple threads will be using the same SDLL instance.
+
+    config SDLL_MUTEX_TIMEOUT_MS
+        int "Timeout in milliseconds"
+        default 100
+        help
+          The timeout in milliseconds for the mutex used by SDLL.
+          This value should be set to the maximum time that the
+          application will wait for the mutex to be available.
+          The default value is 100 milliseconds.
+
+    config SDLL_BOUNDARY_CHAR
+        hex "Boundary character"
+        range 0x01 0xFF
+        default 0x7E
+        help
+          The boundary character is used to delimit the start and end of a message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x7E". Cannot be equal to escape char.
+
+    config SDLL_ESCAPE_CHAR
+        hex "Escape character"
+        range 0x01 0xFF
+        default 0x7D
+        help
+          The escape character is used to escape protocol characters in the message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x7D". Cannot be equal to boundary char.
+
+    config SDLL_ESCAPE_MASK
+        hex "Escape mask"
+        range 0x01 0xFF
+        default 0x20
+        help
+          The escape mask is used to mask the boundary character in the message.
+          It should be a single byte value. The default value is the same for
+          HDLC protocol "0x20". Cannot be 0x00.
+
+module = SDLL
+module-str = sdll
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # SDLL
+
+# End of Kconfig

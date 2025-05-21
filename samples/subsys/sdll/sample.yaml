@@ -1,0 +1,17 @@
+# Copyright (C) 2025 - OWL Services LLC
+# SPDX-License-Identifier: Apache-2.0
+
+sample:
+  description: SDLL sample application
+  name: sdll sample
+common:
+  build_only: true
+  integration_platforms:
+    - native_sim
+
+tests:
+  sample.subsys.sdll:
+    tags:
+      - uart
+      - subsys
+      - sdll
